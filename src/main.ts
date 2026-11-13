@@ -40,7 +40,7 @@ async function bootstrap() {
 
   const port = config.get<number>('port') ?? 3000;
   await app.listen(port);
-  console.log(`🚀 KOÈRÊ API démarrée sur http://localhost:${port}/api`);
+  console.log(`🚀 SOFARY API démarrée sur http://localhost:${port}/api`);
 }
 
 bootstrap();

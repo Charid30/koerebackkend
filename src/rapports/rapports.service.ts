@@ -18,7 +18,7 @@ export class RapportsService {
     });
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'KOERE GMAO';
+    wb.creator = 'SOFARY GMAO';
     wb.created = new Date();
 
     const ws = wb.addWorksheet('État du Parc');
@@ -115,7 +115,7 @@ export class RapportsService {
     ]);
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'KOERE GMAO';
+    wb.creator = 'SOFARY GMAO';
 
     // Feuille info véhicule
     const wsInfo = wb.addWorksheet('Véhicule');
@@ -222,7 +222,7 @@ export class RapportsService {
     ]);
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'KOERE GMAO';
+    wb.creator = 'SOFARY GMAO';
 
     const wsSynthese = wb.addWorksheet('Synthèse');
     const nomMois = debut.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
@@ -274,7 +274,7 @@ export class RapportsService {
     });
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'KOERE GMAO';
+    wb.creator = 'SOFARY GMAO';
     const ws = wb.addWorksheet('État du Stock');
     ws.columns = [
       { header: 'Référence',      key: 'reference',    width: 16 },
