@@ -239,7 +239,7 @@ export class RapportsService {
     const coutTotal = [...otPreventifs, ...otCorrectifs].reduce(
       (s, o) => s + Number(o.coutPrestataire ?? 0) + Number(o.coutPiecesTotal ?? 0), 0
     );
-    wsSynthese.addRow(['Coût total maintenance (DA)', coutTotal]);
+    wsSynthese.addRow(['Coût total maintenance (FCFA)', coutTotal]);
     wsSynthese.columns = [{ width: 30 }, { width: 16 }];
 
     // OT détail
@@ -249,7 +249,7 @@ export class RapportsService {
       { header: 'Véhicule', key: 'vehicule', width: 24 },
       { header: 'Type', key: 'type', width: 12 },
       { header: 'Statut', key: 'statut', width: 20 },
-      { header: 'Coût total (DA)', key: 'cout', width: 16 },
+      { header: 'Coût total (FCFA)', key: 'cout', width: 16 },
     ];
     wsOt.getRow(1).font = { bold: true };
     for (const ot of [...otPreventifs, ...otCorrectifs]) {

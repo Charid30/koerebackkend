@@ -15,9 +15,17 @@ async function bootstrap() {
   // Sécurité HTTP
   app.use(helmet());
 
-  // CORS
+  // CORS : origines listées dans CORS_ORIGINS, plus tout port localhost en développement
+  // (ng serve prend un autre port quand 4200 est occupé).
+  const originesAutorisees = config.get<string[]>('cors.origins') ?? [];
+  const enDev = config.get<string>('nodeEnv') !== 'production';
+  const localhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
   app.enableCors({
-    origin: config.get<string[]>('cors.origins'),
+    origin: (origin, callback) => {
+      const autorisee =
+        !origin || originesAutorisees.includes(origin) || (enDev && localhost.test(origin));
+      callback(null, autorisee);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   });
