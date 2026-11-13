@@ -1,0 +1,27 @@
+# Dependencies & build
+/node_modules
+/dist
+*.tsbuildinfo
+*.tar.gz
+*.zip
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# User uploads
+/uploads
+
+# Logs
+*.log
+npm-debug.log*
+
+# Tests / coverage
+/coverage
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

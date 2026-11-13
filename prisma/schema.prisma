@@ -1,0 +1,514 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// UTILISATEURS & RBAC
+// ─────────────────────────────────────────────
+
+model User {
+  id                Int       @id @default(autoincrement())
+  nom               String    @db.VarChar(100)
+  prenom            String    @db.VarChar(100)
+  email             String    @unique @db.VarChar(150)
+  telephone         String?   @db.VarChar(20)
+  motDePasse        String    @db.VarChar(255)
+  role              Role
+  departement       String?   @db.VarChar(100)
+  actif             Boolean   @default(true)
+  refreshToken      String?   @db.Text
+  tentativesConnexion Int     @default(0)
+  blocqueJusquA     DateTime?
+  derniereConnexion DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  vehiculesConducteur   Vehicule[]              @relation("ConducteurHabituel")
+  inspections           Inspection[]
+  demandesIntervention  DemandeIntervention[]
+  ordresTravauxResponsable OrdresTravail[]      @relation("ResponsableMaintenance")
+  otMecaniciens         OtMecanicien[]
+  releveKilometriques   ReleveKilometrique[]
+  mouvementsStock       MouvementStock[]
+  notifications         Notification[]
+  auditLogs             AuditLog[]
+
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  RESPONSABLE_PARC
+  RESPONSABLE_MAINTENANCE
+  MECANICIEN
+  CHAUFFEUR
+  DIRECTION
+}
+
+// ─────────────────────────────────────────────
+// VÉHICULES & PARC
+// ─────────────────────────────────────────────
+
+model Vehicule {
+  id                  Int             @id @default(autoincrement())
+  numeroInterne       String          @unique @db.VarChar(50)
+  immatriculation     String          @unique @db.VarChar(30)
+  marque              String          @db.VarChar(100)
+  modele              String          @db.VarChar(100)
+  typeVehicule        TypeVehicule
+  annee               Int?
+  entite              String?         @db.VarChar(150)
+  departement         String?         @db.VarChar(100)
+  siteGeographique    String?         @db.VarChar(150)
+  conducteurHabituelId Int?
+  statut              StatutVehicule  @default(DISPONIBLE)
+  kilometrage         Int             @default(0)
+  heuresMoteur        Int             @default(0)
+  dateMiseEnService   DateTime?
+  dateAcquisition     DateTime?
+  numeroSerie         String?         @db.VarChar(100)
+  couleur             String?         @db.VarChar(50)
+  carburant           TypeCarburant?
+  notes               String?         @db.Text
+  photoUrl            String?         @db.VarChar(500)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  conducteurHabituel  User?           @relation("ConducteurHabituel", fields: [conducteurHabituelId], references: [id])
+  inspections         Inspection[]
+  demandesIntervention DemandeIntervention[]
+  ordresTravail       OrdresTravail[]
+  plansPreventifs     PlanMaintenance[]
+  releveKilometriques ReleveKilometrique[]
+  amdecAnalyses       AmdecAnalyse[]
+
+  @@map("vehicules")
+}
+
+enum TypeVehicule {
+  VOITURE
+  CAMION
+  EQUIPEMENT_SPECIAL
+  ENGIN_TP
+}
+
+enum StatutVehicule {
+  DISPONIBLE
+  EN_CIRCULATION
+  EN_MAINTENANCE
+  EN_ATTENTE_REPARATION_EXTERNE
+  EN_ATTENTE_PIECES
+  IMMOBILISE
+  ACCIDENTE
+  HORS_SERVICE
+}
+
+enum TypeCarburant {
+  ESSENCE
+  DIESEL
+  ELECTRIQUE
+  HYBRIDE
+  GPL
+}
+
+// ─────────────────────────────────────────────
+// RELEVÉS KILOMÉTRIQUES
+// ─────────────────────────────────────────────
+
+model ReleveKilometrique {
+  id            Int       @id @default(autoincrement())
+  vehiculeId    Int
+  agentId       Int
+  kilometrage   Int
+  heuresMoteur  Int?
+  dateReleve    DateTime
+  source        SourceReleve @default(MANUEL)
+  notes         String?   @db.Text
+  createdAt     DateTime  @default(now())
+
+  vehicule      Vehicule  @relation(fields: [vehiculeId], references: [id])
+  agent         User      @relation(fields: [agentId], references: [id])
+
+  @@map("releves_kilometriques")
+}
+
+enum SourceReleve {
+  MANUEL
+  MOBILE
+  GPS
+}
+
+// ─────────────────────────────────────────────
+// INSPECTIONS NUMÉRIQUES
+// ─────────────────────────────────────────────
+
+model Inspection {
+  id                Int               @id @default(autoincrement())
+  vehiculeId        Int
+  inspecteurId      Int
+  typeInspection    TypeInspection    @default(PRE_DEPART)
+  dateInspection    DateTime
+  statut            StatutInspection
+  kilometrageReleve Int?
+  heuresMoteurReleve Int?
+  noteGlobale       Float?
+  notes             String?           @db.Text
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  vehicule          Vehicule          @relation(fields: [vehiculeId], references: [id])
+  inspecteur        User              @relation(fields: [inspecteurId], references: [id])
+  items             InspectionItem[]
+  demandeIntervention DemandeIntervention?
+
+  @@map("inspections")
+}
+
+enum TypeInspection {
+  PRE_DEPART
+  PERIODIQUE
+  RETOUR_MISSION
+  TECHNIQUE
+}
+
+enum StatutInspection {
+  CONFORME
+  NON_CONFORME
+  PARTIEL
+}
+
+model InspectionItem {
+  id            Int           @id @default(autoincrement())
+  inspectionId  Int
+  categorie     String        @db.VarChar(100)
+  libelle       String        @db.VarChar(255)
+  resultat      ResultatItem
+  observation   String?       @db.Text
+  photoUrl      String?       @db.VarChar(500)
+  createdAt     DateTime      @default(now())
+
+  inspection    Inspection    @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@map("inspection_items")
+}
+
+enum ResultatItem {
+  OK
+  KO
+  NA
+}
+
+// ─────────────────────────────────────────────
+// DEMANDES D'INTERVENTION (DI)
+// ─────────────────────────────────────────────
+
+model DemandeIntervention {
+  id              Int           @id @default(autoincrement())
+  numeroDI        String        @unique @db.VarChar(30)
+  vehiculeId      Int
+  declarantId     Int
+  inspectionId    Int?          @unique
+  dateSignalement DateTime      @default(now())
+  localisation    String?       @db.VarChar(255)
+  description     String        @db.Text
+  priorite        Priorite      @default(NORMALE)
+  statut          StatutDI      @default(EN_ATTENTE)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  vehicule        Vehicule      @relation(fields: [vehiculeId], references: [id])
+  declarant       User          @relation(fields: [declarantId], references: [id])
+  inspection      Inspection?   @relation(fields: [inspectionId], references: [id])
+  photos          DiPhoto[]
+  ordresTravail   OrdresTravail[]
+
+  @@map("demandes_intervention")
+}
+
+enum Priorite {
+  FAIBLE
+  NORMALE
+  URGENTE
+  CRITIQUE
+}
+
+enum StatutDI {
+  EN_ATTENTE
+  PRISE_EN_CHARGE
+  TRAITEE
+  REJETEE
+}
+
+model DiPhoto {
+  id          Int                 @id @default(autoincrement())
+  diId        Int
+  url         String              @db.VarChar(500)
+  createdAt   DateTime            @default(now())
+
+  di          DemandeIntervention @relation(fields: [diId], references: [id], onDelete: Cascade)
+
+  @@map("di_photos")
+}
+
+// ─────────────────────────────────────────────
+// ORDRES DE TRAVAIL (OT)
+// ─────────────────────────────────────────────
+
+model OrdresTravail {
+  id                    Int             @id @default(autoincrement())
+  numeroOT              String          @unique @db.VarChar(30)
+  diId                  Int?
+  vehiculeId            Int
+  responsableId         Int
+  typeMaintenance       TypeMaintenance
+  statut                StatutOT        @default(EN_ATTENTE_VALIDATION)
+  description           String?         @db.Text
+  datePlanifiee         DateTime?
+  dateDebut             DateTime?
+  dateFin               DateTime?
+  prestatireExterne     String?         @db.VarChar(200)
+  coutPrestataire       Decimal?        @db.Decimal(10, 2)
+  heuresInternesTotal   Decimal?        @db.Decimal(8, 2)
+  coutPiecesTotal       Decimal?        @db.Decimal(10, 2)
+  notesControle         String?         @db.Text
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  demandeIntervention   DemandeIntervention? @relation(fields: [diId], references: [id])
+  vehicule              Vehicule        @relation(fields: [vehiculeId], references: [id])
+  responsable           User            @relation("ResponsableMaintenance", fields: [responsableId], references: [id])
+  mecaniciens           OtMecanicien[]
+  piecesUtilisees       OtPiece[]
+  photos                OtPhoto[]
+
+  @@map("ordres_travail")
+}
+
+enum TypeMaintenance {
+  PREVENTIVE
+  CORRECTIVE
+}
+
+enum StatutOT {
+  EN_ATTENTE_VALIDATION
+  PLANIFIE
+  EN_COURS
+  EN_ATTENTE_PIECES
+  EN_ATTENTE_PRESTATAIRE
+  TERMINE
+  CONTROLE
+  CLOTURE
+  ANNULE
+}
+
+model OtMecanicien {
+  id            Int           @id @default(autoincrement())
+  otId          Int
+  mecanicienId  Int
+  tempsPasse    Decimal?      @db.Decimal(8, 2)
+  diagnostic    String?       @db.Text
+  travauxEffectues String?    @db.Text
+  notes         String?       @db.Text
+  createdAt     DateTime      @default(now())
+
+  ot            OrdresTravail @relation(fields: [otId], references: [id], onDelete: Cascade)
+  mecanicien    User          @relation(fields: [mecanicienId], references: [id])
+
+  @@unique([otId, mecanicienId])
+  @@map("ot_mecaniciens")
+}
+
+model OtPhoto {
+  id        Int           @id @default(autoincrement())
+  otId      Int
+  url       String        @db.VarChar(500)
+  type      TypePhotoOT
+  createdAt DateTime      @default(now())
+
+  ot        OrdresTravail @relation(fields: [otId], references: [id], onDelete: Cascade)
+
+  @@map("ot_photos")
+}
+
+enum TypePhotoOT {
+  AVANT
+  APRES
+  PIECE
+}
+
+// ─────────────────────────────────────────────
+// MAINTENANCE PRÉVENTIVE
+// ─────────────────────────────────────────────
+
+enum TypePlanMaintenance {
+  PERIODIQUE
+  GENERALE
+}
+
+model PlanMaintenance {
+  id                      Int                    @id @default(autoincrement())
+  vehiculeId              Int
+  typePlan                TypePlanMaintenance    @default(PERIODIQUE)
+  typeOperation           String                 @db.VarChar(200)
+  description             String?                @db.Text
+  frequenceKm             Int?
+  frequenceJours          Int?
+  frequenceMois           Int?
+  frequenceHeures         Int?
+  derniereExecutionKm     Int?
+  derniereExecutionDate   DateTime?
+  derniereExecutionHeures Int?
+  prochaineExecutionKm    Int?
+  prochaineExecutionDate  DateTime?
+  prochaineExecutionHeures Int?
+  actif                   Boolean                @default(true)
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+
+  vehicule                Vehicule               @relation(fields: [vehiculeId], references: [id])
+
+  @@map("plans_maintenance")
+}
+
+// ─────────────────────────────────────────────
+// STOCKS & PIÈCES DÉTACHÉES
+// ─────────────────────────────────────────────
+
+model PieceStock {
+  id                  Int               @id @default(autoincrement())
+  reference           String            @unique @db.VarChar(100)
+  designation         String            @db.VarChar(255)
+  marque              String?           @db.VarChar(100)
+  categorie           String?           @db.VarChar(100)
+  quantiteDisponible  Int               @default(0)
+  quantiteMinimum     Int               @default(0)
+  unite               String            @default("unité") @db.VarChar(30)
+  emplacement         String?           @db.VarChar(100)
+  prixUnitaire        Decimal?          @db.Decimal(10, 2)
+  notes               String?           @db.Text
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  mouvements          MouvementStock[]
+  otPieces            OtPiece[]
+
+  @@map("pieces_stock")
+}
+
+model MouvementStock {
+  id              Int             @id @default(autoincrement())
+  pieceId         Int
+  agentId         Int
+  typeMouvement   TypeMouvement
+  quantite        Int
+  prixUnitaire    Decimal?        @db.Decimal(10, 2)
+  motif           String?         @db.VarChar(255)
+  dateOperation   DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+
+  piece           PieceStock      @relation(fields: [pieceId], references: [id])
+  agent           User            @relation(fields: [agentId], references: [id])
+
+  @@map("mouvements_stock")
+}
+
+model OtPiece {
+  id          Int           @id @default(autoincrement())
+  otId        Int
+  pieceId     Int
+  quantite    Int
+  prixUnitaire Decimal?     @db.Decimal(10, 2)
+  createdAt   DateTime      @default(now())
+
+  ot          OrdresTravail @relation(fields: [otId], references: [id], onDelete: Cascade)
+  piece       PieceStock    @relation(fields: [pieceId], references: [id])
+
+  @@map("ot_pieces")
+}
+
+enum TypeMouvement {
+  ENTREE
+  SORTIE
+  AJUSTEMENT
+}
+
+// ─────────────────────────────────────────────
+// AMDEC — ANALYSE DES RISQUES
+// ─────────────────────────────────────────────
+
+model AmdecAnalyse {
+  id                    Int       @id @default(autoincrement())
+  vehiculeId            Int
+  composant             String    @db.VarChar(200)
+  modeDefaillance       String    @db.VarChar(255)
+  effet                 String    @db.Text
+  cause                 String    @db.Text
+  frequence             Int       // 1-5
+  gravite               Int       // 1-5
+  detectabilite         Int       // 1-5
+  ipr                   Int       // frequence * gravite * detectabilite
+  actionsRecommandees   String?   @db.Text
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  vehicule              Vehicule  @relation(fields: [vehiculeId], references: [id])
+
+  @@map("amdec_analyses")
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────
+
+model Notification {
+  id              Int               @id @default(autoincrement())
+  destinataireId  Int
+  type            TypeNotification
+  titre           String            @db.VarChar(255)
+  message         String            @db.Text
+  lu              Boolean           @default(false)
+  lien            String?           @db.VarChar(500)
+  createdAt       DateTime          @default(now())
+
+  destinataire    User              @relation(fields: [destinataireId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+enum TypeNotification {
+  MAINTENANCE_ECHEANCE
+  STOCK_FAIBLE
+  ANOMALIE_RECURRENTE
+  IMMOBILISATION
+  OT_AFFECTE
+  OT_STATUT_CHANGE
+  DI_CREE
+  GENERAL
+}
+
+// ─────────────────────────────────────────────
+// AUDIT LOGS
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id              Int       @id @default(autoincrement())
+  utilisateurId   Int?
+  action          String    @db.VarChar(100)
+  entite          String    @db.VarChar(100)
+  entiteId        Int?
+  anciennesValeurs Json?
+  nouvellesValeurs Json?
+  ipAddress       String?   @db.VarChar(45)
+  userAgent       String?   @db.VarChar(500)
+  createdAt       DateTime  @default(now())
+
+  utilisateur     User?     @relation(fields: [utilisateurId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
