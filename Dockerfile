@@ -1,18 +1,17 @@
-# ── Build stage ──────────────────────────────────────────────
-FROM node:20-alpine AS builder
+# ── Construction ─────────────────────────────────────────────
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 RUN apk add --no-cache openssl
 
 COPY package*.json ./
-RUN npm ci --legacy-peer-deps
+RUN npm ci
 
 COPY . .
-RUN npx prisma generate
-RUN npm run build
+RUN npx prisma generate && npm run build
 
-# ── Production stage ──────────────────────────────────────────
-FROM node:20-alpine AS runner
+# ── Production ───────────────────────────────────────────────
+FROM node:24-alpine AS runner
 WORKDIR /app
 
 RUN apk add --no-cache openssl
@@ -20,16 +19,16 @@ RUN apk add --no-cache openssl
 ENV NODE_ENV=production
 
 COPY package*.json ./
-RUN npm ci --omit=dev --legacy-peer-deps && npm cache clean --force
+RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
+RUN npx prisma generate && mkdir -p uploads && chown -R node:node /app
 
-RUN npm install -g prisma --legacy-peer-deps
-RUN npx prisma generate
-
-RUN mkdir -p uploads
+# L'application ne tourne pas en root
+USER node
 
 EXPOSE 3000
 
+# Met le schéma de la base à jour au démarrage (refuse les changements destructeurs), puis lance l'API
 CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/main"]

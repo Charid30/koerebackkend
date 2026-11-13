@@ -1,0 +1,70 @@
+# SOFARY GMAO — déploiement sur le serveur
+#
+# Arborescence attendue :
+#   /opt/sofary/koerebackkend   (ce dépôt ; ce fichier est dans deploy/)
+#   /opt/sofary/koerefrontend
+#
+# Lancement :  cd /opt/sofary/koerebackkend/deploy && docker compose up -d --build
+# Les secrets sont dans deploy/.env (jamais commité, voir .env.example).
+
+name: sofary
+
+services:
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: koere_db
+      MARIADB_USER: sofary
+      MARIADB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD manquant dans .env}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD manquant dans .env}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Aucun port publié : la base n'est joignable que depuis les autres conteneurs.
+
+  api:
+    build: ..
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: mysql://sofary:${DB_PASSWORD}@db:3306/koere_db
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET manquant dans .env}
+      JWT_EXPIRES_IN: 15m
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET manquant dans .env}
+      JWT_REFRESH_EXPIRES_IN: 7d
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+      UPLOAD_DIR: ./uploads
+      MAX_FILE_SIZE_MB: 10
+    volumes:
+      - uploads:/app/uploads
+
+  web:
+    build: ../../koerefrontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      # ":80" = accès par l'IP en HTTP ; un nom de domaine active le HTTPS automatique.
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  db-data:
+  uploads:
+  caddy-data:
+  caddy-config:
