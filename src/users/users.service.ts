@@ -57,20 +57,23 @@ export class UsersService {
     await this.findOne(id);
     const hash = await bcrypt.hash(nouveauMotDePasse, 12);
     await this.prisma.user.update({ where: { id }, data: { motDePasse: hash, tentativesConnexion: 0, blocqueJusquA: null } });
+    // L'ancien mot de passe n'ouvre plus rien : on déconnecte tous les appareils de ce compte.
+    await this.prisma.session.deleteMany({ where: { userId: id } });
     return { message: 'Mot de passe réinitialisé' };
   }
 
   async toggleActif(id: number) {
     const user = await this.findOne(id);
+    const desactivation = (user as any).actif;
+    if (desactivation) {
+      // Un compte désactivé est déconnecté de tous ses appareils.
+      await this.prisma.session.deleteMany({ where: { userId: id } });
+    }
     return this.prisma.user.update({
       where: { id },
-      data: { actif: !(user as any).actif },
+      data: { actif: !desactivation },
       select: SELECT_SAFE,
     });
   }
 
-  async updateRefreshToken(id: number, token: string | null) {
-    const hash = token ? await bcrypt.hash(token, 10) : null;
-    await this.prisma.user.update({ where: { id }, data: { refreshToken: hash } });
-  }
 }

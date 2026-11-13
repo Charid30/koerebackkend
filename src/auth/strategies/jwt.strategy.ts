@@ -14,7 +14,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
 
-  async validate(payload: { sub: number; email: string; role: string }) {
+  async validate(payload: { sub: number; email: string; role: string; sid?: string }) {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       select: { id: true, email: true, role: true, actif: true },
@@ -24,6 +24,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Compte inactif ou introuvable');
     }
 
-    return user;
+    // `sid` identifie la session de l'appareil (utilisé par la déconnexion)
+    return { ...user, sid: payload.sid };
   }
 }

@@ -21,7 +21,6 @@ model User {
   role              Role
   departement       String?   @db.VarChar(100)
   actif             Boolean   @default(true)
-  refreshToken      String?   @db.Text
   tentativesConnexion Int     @default(0)
   blocqueJusquA     DateTime?
   derniereConnexion DateTime?
@@ -38,8 +37,26 @@ model User {
   mouvementsStock       MouvementStock[]
   notifications         Notification[]
   auditLogs             AuditLog[]
+  sessions              Session[]
 
   @@map("users")
+}
+
+/// Une session par appareil connecté : plusieurs connexions simultanées sont possibles.
+/// Le refresh token n'est jamais stocké en clair, seulement son empreinte SHA-256.
+model Session {
+  id          String    @id @db.VarChar(36)
+  userId      Int
+  tokenHash   String    @db.VarChar(64)
+  userAgent   String?   @db.VarChar(255)
+  expiresAt   DateTime
+  lastUsedAt  DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
 }
 
 enum Role {

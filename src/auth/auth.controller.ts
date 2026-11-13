@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Body, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, UseGuards, HttpCode, HttpStatus, Headers } from '@nestjs/common';
 import { IsString, MinLength } from 'class-validator';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
@@ -18,14 +18,14 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  login(@Body() dto: LoginDto, @Headers('user-agent') userAgent?: string) {
+    return this.authService.login(dto, userAgent);
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  logout(@CurrentUser('id') userId: number) {
-    return this.authService.logout(userId);
+  logout(@CurrentUser('id') userId: number, @CurrentUser('sid') sid?: string) {
+    return this.authService.logout(userId, sid);
   }
 
   @Public()
@@ -33,7 +33,7 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   refresh(@CurrentUser() user: any) {
-    return this.authService.refreshTokens(user.id, user.email, user.role);
+    return this.authService.refreshTokens(user.id, user.email, user.role, user.sid);
   }
 
   @Get('profil')
@@ -43,7 +43,11 @@ export class AuthController {
 
   @Patch('changer-mot-de-passe')
   @HttpCode(HttpStatus.OK)
-  changerMotDePasse(@CurrentUser('id') userId: number, @Body() dto: ChangerMdpDto) {
-    return this.authService.changerMotDePasse(userId, dto.motDePasseActuel, dto.nouveauMotDePasse);
+  changerMotDePasse(
+    @CurrentUser('id') userId: number,
+    @CurrentUser('sid') sid: string | undefined,
+    @Body() dto: ChangerMdpDto,
+  ) {
+    return this.authService.changerMotDePasse(userId, dto.motDePasseActuel, dto.nouveauMotDePasse, sid);
   }
 }
