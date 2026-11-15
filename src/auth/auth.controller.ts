@@ -33,7 +33,7 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   refresh(@CurrentUser() user: any) {
-    return this.authService.refreshTokens(user.id, user.email, user.role, user.sid);
+    return this.authService.refreshTokens(user.id, user.email, user.role, user.sid, user.ancienFormat ? user.refreshToken : undefined);
   }
 
   @Get('profil')

@@ -94,8 +94,16 @@ export class AuthService {
     return { message: 'Déconnexion réussie' };
   }
 
-  async refreshTokens(userId: number, email: string, role: string, sid: string) {
+  /**
+   * Nouveau jeton d'accès. Si `refreshTokenConserve` est fourni (ancienne appli mobile,
+   * qui n'enregistre pas le nouveau refresh token), on le renvoie tel quel sans rotation.
+   */
+  async refreshTokens(userId: number, email: string, role: string, sid: string, refreshTokenConserve?: string) {
     const tokens = await this.genererTokens(userId, email, role as any, sid);
+    if (refreshTokenConserve) {
+      await this.sessions.marquerUtilisee(sid);
+      return { accessToken: tokens.accessToken, refreshToken: refreshTokenConserve };
+    }
     await this.sessions.renouveler(sid, tokens.refreshToken, this.expiration(tokens.refreshToken));
     return tokens;
   }

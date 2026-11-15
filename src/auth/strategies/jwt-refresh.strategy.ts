@@ -14,7 +14,12 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     private sessions: SessionsService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      // En-tête Authorization (site, nouvelle appli) ou champ refreshToken du corps
+      // (anciennes versions de l'application mobile)
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        ExtractJwt.fromBodyField('refreshToken'),
+      ]),
       ignoreExpiration: false,
       secretOrKey: config.get<string>('jwt.refreshSecret')!,
       passReqToCallback: true,
@@ -22,8 +27,8 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
   }
 
   async validate(req: Request, payload: { sub: number; sid?: string }) {
-    const authHeader = req.get('Authorization');
-    const refreshToken = authHeader?.replace('Bearer ', '').trim();
+    const enTete = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
+    const refreshToken = enTete ?? ExtractJwt.fromBodyField('refreshToken')(req);
 
     if (!refreshToken) throw new UnauthorizedException();
 
@@ -36,6 +41,6 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     const valide = await this.sessions.verifier(payload.sid, user.id, refreshToken);
     if (!valide) throw new UnauthorizedException('Session expirée ou révoquée');
 
-    return { id: user.id, email: user.email, role: user.role, sid: payload.sid };
+    return { id: user.id, email: user.email, role: user.role, sid: payload.sid, refreshToken, ancienFormat: !enTete };
   }
 }

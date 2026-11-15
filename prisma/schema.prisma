@@ -48,6 +48,10 @@ model Session {
   id          String    @id @db.VarChar(36)
   userId      Int
   tokenHash   String    @db.VarChar(64)
+  /// Jeton précédent, encore accepté peu de temps après une rotation
+  /// (onglets simultanés, réponse perdue sur un réseau instable)
+  previousTokenHash String? @db.VarChar(64)
+  rotatedAt   DateTime?
   userAgent   String?   @db.VarChar(255)
   expiresAt   DateTime
   lastUsedAt  DateTime  @default(now())
