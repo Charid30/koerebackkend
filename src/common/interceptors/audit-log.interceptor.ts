@@ -17,6 +17,8 @@ export class AuditLogInterceptor implements NestInterceptor {
 
     const auditableMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
     if (!auditableMethods.includes(method)) return next.handle();
+    // Connexion, déconnexion et rafraîchissement de jeton : pas d'intérêt métier, beaucoup de bruit
+    if (url.includes('/auth/')) return next.handle();
 
     return next.handle().pipe(
       tap(async () => {
@@ -27,6 +29,7 @@ export class AuditLogInterceptor implements NestInterceptor {
               utilisateurId: user?.id ?? null,
               action: method,
               entite,
+              entiteId: Number(request.params?.id) || null,
               ipAddress: (request.headers['x-forwarded-for'] as string) ?? ip,
               userAgent: headers['user-agent'] ?? null,
             },
