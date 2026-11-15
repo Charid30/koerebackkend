@@ -2,6 +2,8 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOtDto } from './dto/create-ot.dto';
 import { UpdateStatutOtDto } from './dto/update-statut-ot.dto';
+import { UpdateCoutsOtDto } from './dto/update-couts-ot.dto';
+import { UpdateTravauxOtDto } from './dto/update-travaux-ot.dto';
 import { StatutOT } from '@prisma/client';
 
 @Injectable()
@@ -109,8 +111,20 @@ export class OrdresTravauxService {
     return updatedOt;
   }
 
+  listerMecaniciens() {
+    return this.prisma.user.findMany({
+      where: { role: 'MECANICIEN', actif: true },
+      select: { id: true, nom: true, prenom: true },
+      orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
+    });
+  }
+
   async affecterMecanicien(otId: number, mecanicienId: number) {
     await this.findOne(otId);
+    const mecanicien = await this.prisma.user.findUnique({ where: { id: mecanicienId } });
+    if (!mecanicien || mecanicien.role !== 'MECANICIEN' || !mecanicien.actif) {
+      throw new BadRequestException('Cet utilisateur n’est pas un mécanicien actif');
+    }
     return this.prisma.otMecanicien.upsert({
       where: { otId_mecanicienId: { otId, mecanicienId } },
       create: { otId, mecanicienId },
@@ -118,12 +132,15 @@ export class OrdresTravauxService {
     });
   }
 
-  async updateCouts(id: number, body: {
-    coutPrestataire?: number;
-    coutPiecesTotal?: number;
-    heuresInternesTotal?: number;
-    prestatireExterne?: string;
-  }) {
+  async retirerMecanicien(otId: number, mecanicienId: number) {
+    const lien = await this.prisma.otMecanicien.findUnique({
+      where: { otId_mecanicienId: { otId, mecanicienId } },
+    });
+    if (!lien) throw new NotFoundException('Ce mécanicien n’est pas affecté à cet OT');
+    return this.prisma.otMecanicien.delete({ where: { id: lien.id } });
+  }
+
+  async updateCouts(id: number, body: UpdateCoutsOtDto) {
     await this.findOne(id);
     return this.prisma.ordresTravail.update({
       where: { id },
@@ -136,11 +153,11 @@ export class OrdresTravauxService {
     });
   }
 
-  async updateMecanicienTravaux(otId: number, mecanicienId: number, body: {
-    tempsPasse?: number;
-    diagnostic?: string;
-    travauxEffectues?: string;
-  }) {
+  async updateMecanicienTravaux(otId: number, mecanicienId: number, body: UpdateTravauxOtDto) {
+    const lien = await this.prisma.otMecanicien.findUnique({
+      where: { otId_mecanicienId: { otId, mecanicienId } },
+    });
+    if (!lien) throw new NotFoundException('Ce mécanicien n’est pas affecté à cet OT');
     return this.prisma.otMecanicien.update({
       where: { otId_mecanicienId: { otId, mecanicienId } },
       data: body,

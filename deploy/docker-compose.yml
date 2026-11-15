@@ -62,6 +62,8 @@ services:
     volumes:
       - caddy-data:/data
       - caddy-config:/config
+      # APK de l'application mobile, servie sur /downloads/
+      - ./telechargements:/telechargements:ro
 
 volumes:
   db-data:

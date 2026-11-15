@@ -1,8 +1,10 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, ParseIntPipe, ForbiddenException } from '@nestjs/common';
 import { Role, StatutOT } from '@prisma/client';
 import { OrdresTravauxService } from './ordres-travail.service';
 import { CreateOtDto } from './dto/create-ot.dto';
 import { UpdateStatutOtDto } from './dto/update-statut-ot.dto';
+import { UpdateCoutsOtDto } from './dto/update-couts-ot.dto';
+import { UpdateTravauxOtDto } from './dto/update-travaux-ot.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -18,6 +20,13 @@ export class OrdresTravauxController {
     @Query('limit') limit = 20,
   ) {
     return this.otService.findAll(statut, vehiculeId ? +vehiculeId : undefined, +page, +limit);
+  }
+
+  /** Mécaniciens actifs qu'on peut affecter à un OT */
+  @Get('mecaniciens')
+  @Roles(Role.ADMIN, Role.RESPONSABLE_MAINTENANCE)
+  mecaniciens() {
+    return this.otService.listerMecaniciens();
   }
 
   @Get(':id')
@@ -61,8 +70,17 @@ export class OrdresTravauxController {
 
   @Patch(':id/couts')
   @Roles(Role.ADMIN, Role.RESPONSABLE_MAINTENANCE, Role.RESPONSABLE_PARC)
-  updateCouts(@Param('id', ParseIntPipe) id: number, @Body() body: any) {
+  updateCouts(@Param('id', ParseIntPipe) id: number, @Body() body: UpdateCoutsOtDto) {
     return this.otService.updateCouts(id, body);
+  }
+
+  @Delete(':id/mecaniciens/:mecanicienId')
+  @Roles(Role.ADMIN, Role.RESPONSABLE_MAINTENANCE)
+  retirerMecanicien(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('mecanicienId', ParseIntPipe) mecanicienId: number,
+  ) {
+    return this.otService.retirerMecanicien(id, mecanicienId);
   }
 
   @Delete(':id')
@@ -76,8 +94,13 @@ export class OrdresTravauxController {
   updateTravaux(
     @Param('id', ParseIntPipe) id: number,
     @Param('mecanicienId', ParseIntPipe) mecanicienId: number,
-    @Body() body: any,
+    @Body() body: UpdateTravauxOtDto,
+    @CurrentUser() acteur: { id: number; role: Role },
   ) {
+    // Un mécanicien ne remplit que son propre compte rendu
+    if (acteur.role === Role.MECANICIEN && acteur.id !== mecanicienId) {
+      throw new ForbiddenException('Vous ne pouvez saisir que vos propres travaux');
+    }
     return this.otService.updateMecanicienTravaux(id, mecanicienId, body);
   }
 }

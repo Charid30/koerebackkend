@@ -25,3 +25,6 @@ npm-debug.log*
 .vscode/
 .DS_Store
 Thumbs.db
+
+# APK de l'application mobile (déposée à la main sur le serveur)
+deploy/telechargements/*.apk

@@ -1,0 +1,2 @@
+L'APK de l'application mobile se dépose ici sous le nom sofary.apk.
+Elle est alors téléchargeable sur https://<domaine>/downloads/sofary.apk.
