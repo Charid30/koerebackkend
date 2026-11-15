@@ -65,7 +65,7 @@ export class OrdresTravauxService {
     return d;
   }
 
-  async updateStatut(id: number, dto: UpdateStatutOtDto, userId: number) {
+  async updateStatut(id: number, dto: UpdateStatutOtDto, _userId: number) {
     const ot = await this.findOne(id);
 
     const transitionsValides: Partial<Record<StatutOT, StatutOT[]>> = {

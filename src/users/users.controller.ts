@@ -45,18 +45,49 @@ export class UsersController {
     return this.usersService.create(dto);
   }
 
+  /**
+   * Un utilisateur ne peut agir que sur un compte dont le rôle lui est subordonné,
+   * et ne peut attribuer qu'un rôle subordonné (même règle qu'à la création).
+   * Sans cette vérification, un mécanicien pouvait se donner le rôle ADMIN ou
+   * réinitialiser le mot de passe d'un administrateur.
+   */
+  private async verifierDroitSur(cibleId: number, acteur: { id: number; role: Role }, nouveauRole?: Role) {
+    if (cibleId === acteur.id) {
+      throw new ForbiddenException('Vous ne pouvez pas modifier votre propre compte ici : utilisez « Mon profil »');
+    }
+    const autorises = ROLE_SUBORDONNES[acteur.role] ?? [];
+    const cible = await this.usersService.findOne(cibleId);
+    if (!autorises.includes(cible.role as Role)) {
+      throw new ForbiddenException('Vous ne pouvez pas gérer un utilisateur de ce rôle');
+    }
+    if (nouveauRole && !autorises.includes(nouveauRole)) {
+      throw new ForbiddenException(`Vous ne pouvez pas attribuer le rôle ${nouveauRole}`);
+    }
+  }
+
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto) {
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateUserDto,
+    @CurrentUser() acteur: { id: number; role: Role },
+  ) {
+    await this.verifierDroitSur(id, acteur, dto.role as Role | undefined);
     return this.usersService.update(id, dto);
   }
 
   @Patch(':id/toggle-actif')
-  toggleActif(@Param('id', ParseIntPipe) id: number) {
+  async toggleActif(@Param('id', ParseIntPipe) id: number, @CurrentUser() acteur: { id: number; role: Role }) {
+    await this.verifierDroitSur(id, acteur);
     return this.usersService.toggleActif(id);
   }
 
   @Patch(':id/reset-mot-de-passe')
-  resetMotDePasse(@Param('id', ParseIntPipe) id: number, @Body() dto: ResetMdpDto) {
+  async resetMotDePasse(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ResetMdpDto,
+    @CurrentUser() acteur: { id: number; role: Role },
+  ) {
+    await this.verifierDroitSur(id, acteur);
     return this.usersService.resetMotDePasse(id, dto.nouveauMotDePasse);
   }
 }

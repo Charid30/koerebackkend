@@ -1,14 +1,13 @@
 import { Controller, Get } from '@nestjs/common';
-import { Role } from '@prisma/client';
 import { DashboardService } from './dashboard.service';
-import { Roles } from '../common/decorators/roles.decorator';
 
 @Controller('dashboard')
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
+  // Ouvert à tous les rôles connectés : le frontend a une vue dédiée pour
+  // les mécaniciens et les chauffeurs, qui recevaient jusqu'ici une erreur 403.
   @Get()
-  @Roles(Role.ADMIN, Role.RESPONSABLE_PARC, Role.RESPONSABLE_MAINTENANCE, Role.DIRECTION)
   getData() {
     return this.dashboardService.getData();
   }

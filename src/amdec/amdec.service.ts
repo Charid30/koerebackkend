@@ -32,7 +32,6 @@ export class AmdecService {
     }
 
     const ipr = this.calculerIPR(frequence, gravite, detectabilite);
-    const niveauRisque = this.getNiveauRisque(ipr);
 
     return this.prisma.amdecAnalyse.create({
       data: { ...dto, ipr },
